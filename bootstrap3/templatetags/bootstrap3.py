@@ -128,7 +128,11 @@ class ButtonsNode(template.Node):
         if submit:
             buttons.append(bootstrap_button(submit, 'submit'))
         if reset:
-            buttons.append(bootstrap_button(reset, 'reset'))
+            reset_link = output_kwargs.get('reset_link', None)
+            if reset_link:
+                buttons.append((bootstrap_button(reset, link=reset_link)))
+            else:
+                buttons.append(bootstrap_button(reset, 'reset'))
         buttons = ' '.join(buttons) + self.nodelist.render(context)
         output_kwargs.update({
             'label': None,
