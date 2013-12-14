@@ -173,15 +173,15 @@ def render_label(content, label_for=None, label_class=None, label_title=''):
                                                     content=content)
 
 
-def render_button(content, button_type=None, icon=None, link=None):
-    attrs = {
-        'class': 'btn'
-    }
+def render_button(content, button_type=None, icon=None, link=None,
+                  css_classes=None):
+    css_class = 'btn'
+    attrs = {}
     icon_content = ''
     tag = 'button'  
     if button_type:
         if button_type == 'submit':
-            attrs['class'] += ' btn-primary'
+            css_class = add_css_class(css_class, 'btn-primary')
         elif button_type != 'reset' and button_type != 'button':
             raise BootstrapError('Parameter "button_type" should be ' +
                                  '"submit", "reset", "button" or empty.')
@@ -189,9 +189,11 @@ def render_button(content, button_type=None, icon=None, link=None):
     if link:
         tag = 'a'
         attrs['href'] = link
-        attrs['class'] = 'btn btn-default'
+        css_class = add_css_class(css_class, 'btn-default')
     if icon:
         icon_content = render_icon(icon) + ' '
+    css_class = add_css_class(css_class, css_classes)
+    attrs['class'] = css_class
     return '<{tag}{attrs}>{content}</{tag}>'.format(
         attrs=flatatt(attrs),
         content='{icon_content}{content}'.format(icon_content=icon_content, content=content),
