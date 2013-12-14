@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from math import floor
 import re
+from math import floor
+
 from django import template
 from django.template.loader import get_template
 
-from ..bootstrap import jquery_url, javascript_url, css_url
+from ..bootstrap import css_url, javascript_url, jquery_url
+from ..forms import (render_button, render_field, render_field_and_label,
+                     render_form, render_form_group, render_formset,
+                     render_label)
 from ..icons import render_icon
-from ..forms import (render_formset, render_field, render_form, render_button,
-    render_label, render_form_group, render_field_and_label)
-from ..templates import parse_token_contents, handle_var
-
+from ..templates import handle_var, parse_token_contents
 
 register = template.Library()
 
@@ -33,22 +34,31 @@ def bootstrap_css_url():
 
 @register.simple_tag
 def bootstrap_css():
+    """
+    Return HTML for Bootstrap CSS
+    Adjust url in settings. If no url is returned, we don't want this statement to return any HTML.
+    This is intended behavior.
+    """
     url = bootstrap_css_url()
-    if url:
-        return '<link href="%s" rel="stylesheet" media="screen">' % url
-    return ''
+    if url:  # http://mothereff.in/unquoted-attributes
+        return '<link href="{url}" rel=stylesheet media=screen>'.format(url=url)
 
 
 @register.simple_tag
 def bootstrap_javascript(jquery=False):
+    """
+    Return HTML for Bootstrap JavaScript
+    Adjust url in settings. If no url is returned, we don't want this statement to return any HTML.
+    This is intended behavior.
+    """
     javascript = ''
     if jquery:
         url = bootstrap_jquery_url()
-        if url:
-            javascript += '<script src="%s"></script>' % url
+        if url:  # http://caniuse.com/#search=async
+            javascript += '<script src="{url}" async></script>'.format(url=url)
     url = bootstrap_javascript_url()
     if url:
-        javascript += '<script src="%s"></script>' % url
+        javascript += '<script src="{url}" async></script>'.format(url=url)
     return javascript
 
 
@@ -164,13 +174,15 @@ def bootstrap_pagination(page, **kwargs):
     return get_pagination_context(**pagination_kwargs)
 
 
-def get_pagination_context(page, pages_to_show=11, url=None, size=None, extra=None):
+def get_pagination_context(page, pages_to_show=11,
+                           url=None, size=None, extra=None):
     """
     Generate Bootstrap pagination context from a page object
     """
     pages_to_show = int(pages_to_show)
     if pages_to_show < 1:
-        raise ValueError("Pagination pages_to_show should be a positive integer, you specified %s" % pages_to_show)
+        raise ValueError("Pagination pages_to_show should be a positive " +
+                         "integer, you specified {pages}".format(pages=pages_to_show))
     num_pages = page.paginator.num_pages
     current_page = page.number
     half_page_num = int(floor(pages_to_show / 2)) - 1
@@ -223,7 +235,7 @@ def get_pagination_context(page, pages_to_show=11, url=None, size=None, extra=No
         url += unicode(extra) + '&'
     if url:
         url = url.replace('?&', '?')
-        # Set CSS classes, see http://twitter.github.io/bootstrap/components.html#pagination
+    # Set CSS classes,see twitter.github.io/bootstrap/components.html#pagination
     pagination_css_classes = ['pagination']
     if size == 'small':
         pagination_css_classes.append('pagination-sm')

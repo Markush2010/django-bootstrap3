@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from __future__ import unicode_literals
 
 from django.forms import widgets
@@ -18,14 +19,17 @@ FORM_GROUP_CLASS = 'form-group'
 
 def render_formset(formset, **kwargs):
     if not isinstance(formset, BaseFormSet):
-        raise BootstrapError('Parameter "formset" should contain a valid Django FormSet.')
+        raise BootstrapError(
+              'Parameter "formset" should contain a valid Django FormSet.')
     forms = [render_form(f, **kwargs) for f in formset]
     return force_text(formset.management_form) + '\n' + '\n'.join(forms)
 
 
-def render_form(form, layout='', field_class='', label_class='', show_help=True, exclude=''):
+def render_form(form, layout='', form_group_class=FORM_GROUP_CLASS,
+                field_class='', label_class='', show_help=True, exclude=''):
     if not isinstance(form, BaseForm):
-        raise BootstrapError('Parameter "form" should contain a valid Django Form.')
+        raise BootstrapError(
+              'Parameter "form" should contain a valid Django Form.')
     html = ''
     errors = []
     fields = []
@@ -33,6 +37,7 @@ def render_form(form, layout='', field_class='', label_class='', show_help=True,
         fields.append(render_field(
             field,
             layout=layout,
+            form_group_class=form_group_class,
             field_class=field_class,
             label_class=label_class,
             show_help=show_help,
@@ -42,14 +47,20 @@ def render_form(form, layout='', field_class='', label_class='', show_help=True,
             errors += field.errors
     errors += form.non_field_errors()
     if errors:
-        html += '<div class="alert alert-danger">%s</div>\n' % '\n'.join(['<p>%s</p>' % e for e in errors])
+        html += '''<div class="alert alert-danger alert-dismissable alert-link">
+                   <button class=close data-dismiss=alert aria-hidden=true>
+                   &times;</button>{errors}</div>\n
+                '''.format(errors='\n'.join(['<p>{e}</p>'.format(e=e) for e in errors]))
     return html + '\n'.join(fields)
 
 
-def render_field(field, layout='', field_class=None, label_class=None, show_label=True, show_help=True, exclude=''):
+def render_field(field, layout='', form_group_class=FORM_GROUP_CLASS,
+                 field_class=None, label_class=None, show_label=True,
+                 show_help=True, exclude=''):
     # Only allow BoundField
     if not isinstance(field, BoundField):
-        raise BootstrapError('Parameter "field" should contain a valid Django BoundField.' + field)
+        raise BootstrapError(
+          'Parameter "field" should contain a valid Django BoundField.' + field)
     # See if we're not excluded
     if field.name in exclude.replace(' ', '').split(','):
         return ''
@@ -76,7 +87,7 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
     if isinstance(field.field.widget, widgets.CheckboxInput):
         form_control_class = ''
         put_inside_label = True
-        wrapper = '<div class="checkbox">%s</div>'
+        wrapper = '<div class=checkbox>{content}</div>'
     elif isinstance(field.field.widget, widgets.RadioSelect):
         form_control_class = ''
         list_to_class = 'radio'
@@ -85,7 +96,8 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
         list_to_class = 'checkbox'
     # Temporarily adjust to widget class and placeholder attributes if necessary
     if form_control_class:
-        field.field.widget.attrs['class'] = add_css_class(widget_attr_class, form_control_class)
+        field.field.widget.attrs['class'] = add_css_class(widget_attr_class,
+                                                          form_control_class)
     if field.label and not put_inside_label and not widget_attr_placeholder:
         field.field.widget.attrs['placeholder'] = field.label
     if show_help and not put_inside_label and not widget_attr_title:
@@ -93,7 +105,7 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
     if widget_is_required:
         field.field.widget.attrs['required'] = ''
     # Render the field
-    rendered_field = force_text(field)
+    rendered_field = field.as_widget(attrs=field.field.widget.attrs)
     # Return class and placeholder attributes to original settings
     field.field.widget.attrs['class'] = widget_attr_class
     field.field.widget.attrs['placeholder'] = widget_attr_placeholder
@@ -103,14 +115,15 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
         mapping = [
             ('<ul', '<div'),
             ('</ul>', '</div>'),
-            ('<li', '<div class="%s"' % list_to_class),
+            ('<li', '<div class="{klass}"'.format(klass=list_to_class)),
             ('</li>', '</div>'),
         ]
         for k, v in mapping:
             rendered_field = rendered_field.replace(k, v)
     # Wrap the rendered field in its label if necessary
     if put_inside_label:
-        rendered_field = render_label('%s %s' % (rendered_field, field.label,), label_title=field.help_text)
+        rendered_field = render_label('{field} {label}'.format(field=rendered_field,
+                                      label=field.label), label_title=field.help_text)
     # Add any help text and/or errors
     if layout != 'inline':
         help_text_and_errors = []
@@ -119,12 +132,12 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
         if field.errors:
             help_text_and_errors += field.errors
         if help_text_and_errors:
-            rendered_field += '<span class="help-block">%s</span>' % ' '.join(
-                force_text(s) for s in help_text_and_errors
+            rendered_field += '<span class=help-block>{help}</span>'.format(
+                help=' '.join(force_text(s) for s in help_text_and_errors)
             )
     # Wrap the rendered field
     if wrapper:
-        rendered_field = wrapper % rendered_field
+        rendered_field = wrapper.format(content=rendered_field)
     # Prepare label
     label = field.label
     if put_inside_label:
@@ -140,11 +153,11 @@ def render_field(field, layout='', field_class=None, label_class=None, show_labe
         layout=layout,
     )
     # Return combined content, wrapped in form control
-    form_group_class = ''
     if field.errors:
-        form_group_class = 'has-error'
+        form_group_class = add_css_class(form_group_class, 'has-error')
     elif field.form.is_bound:
-        form_group_class = 'has-success'
+        form_group_class = add_css_class(form_group_class, 'has-success')
+
     return render_form_group(content, form_group_class)
 
 
@@ -156,10 +169,8 @@ def render_label(content, label_for=None, label_class=None, label_title=''):
         attrs['class'] = label_class
     if label_title:
         attrs['title'] = label_title
-    return '<label%(attrs)s>%(content)s</label>' % {
-        'attrs': flatatt(attrs),
-        'content': content,
-    }
+    return '<label{attrs}>{content}</label>'.format(attrs=flatatt(attrs),
+                                                    content=content)
 
 
 def render_button(content, button_type=None, icon=None, link=None):
@@ -172,7 +183,8 @@ def render_button(content, button_type=None, icon=None, link=None):
         if button_type == 'submit':
             attrs['class'] += ' btn-primary'
         elif button_type != 'reset' and button_type != 'button':
-            raise BootstrapError('Parameter "button_type" should be "submit", "reset", "button" or empty.')
+            raise BootstrapError('Parameter "button_type" should be ' +
+                                 '"submit", "reset", "button" or empty.')
         attrs['type'] = button_type
     if link:
         tag = 'a'
@@ -180,14 +192,15 @@ def render_button(content, button_type=None, icon=None, link=None):
         attrs['class'] = 'btn btn-default'
     if icon:
         icon_content = render_icon(icon) + ' '
-    return '<%(tag)s%(attrs)s>%(content)s</%(tag)s>' % {
-        'attrs': flatatt(attrs),
-        'content': '%s%s' % (icon_content, content),
-        'tag': tag,
-    }
+    return '<{tag}{attrs}>{content}</{tag}>'.format(
+        attrs=flatatt(attrs),
+        content='{icon_content}{content}'.format(icon_content=icon_content, content=content),
+        tag=tag
+    )
 
 
-def render_field_and_label(field, label, field_class='', label_class='', layout='', **kwargs):
+def render_field_and_label(field, label, field_class='',
+                           label_class='', layout='', **kwargs):
     # Default settings for horizontal form
     if layout == 'horizontal':
         if not label_class:
@@ -199,14 +212,12 @@ def render_field_and_label(field, label, field_class='', label_class='', layout=
         label_class = add_css_class(label_class, 'control-label')
     html = field
     if field_class:
-        html = '<div class="%s">%s</div>' % (field_class, html)
+        html = '<div class="{klass}">{html}</div>'.format(klass=field_class, html=html)
     if label:
         html = render_label(label, label_class=label_class) + html
     return html
 
 
-def render_form_group(content, css_class=''):
-    return '<div class="%(class)s">%(content)s</div>' % {
-        'class': add_css_class(FORM_GROUP_CLASS, css_class),
-        'content': content,
-    }
+def render_form_group(content, css_class=FORM_GROUP_CLASS):
+    return '<div class="{_class}">{content}</div>'.format(_class=css_class,
+                                                          content=content)
